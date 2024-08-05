@@ -16,7 +16,7 @@ services:
       retries: 20
       interval: 10s
     networks:
-      - testNetWork
+      testNetWork:
   
   broker:
     image: confluentinc/cp-kafka:7.4.0
@@ -45,7 +45,7 @@ services:
       timeout: 10s
       retries: 10
     networks:
-      - testNetWork
+      testNetWork:
 
   control-center:
     image: confluentinc/cp-enterprise-control-center:7.4.0
@@ -65,16 +65,16 @@ services:
       CONFLUENT_METRICS_ENABLE: 'false'
       PORT: 9021
     networks:
-      - testNetWork
+      testNetWork:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9021/health"]
       interval: 30s
       timeout: 10s
       retries: 5
+    
 
   debezium:
     image: debezium/connect:latest
-    restart: always
     container_name: debezium
     hostname: debezium
     depends_on:
@@ -85,7 +85,7 @@ services:
     ports:
       - '8093:8083'
     environment:
-      BOOTSTRAP_SERVER: broker:29092
+      BOOTSTRAP_SERVERS: broker:29092
       CONNECT_REST_ADVERTISED_HOST_NAME: debezium
       GROUP_ID: 1
       CONFIG_STORAGE_TOPIC: connect_configs
@@ -95,16 +95,19 @@ services:
       VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       ENABLE_DEBEZIUM_SCRIPTING: 'true'
     healthcheck:
-      test: ["CMD", "curl",'--silent','--fail', '-X','GET', 'http://localhost:8083/connectors',]
+      test:
+        [ 'CMD', 'curl', '--silent', '--fail', '-X', 'GET', 'http://localhost:8083/connectors', ]
+      start_period: 10s
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
     networks:
-      - testNetWork
+      testNetWork:
+    platform: linux/amd64
+
 
   debezium-ui:
-    image: debezium/debezium-ui:latest
+    image: debezium/debezium-ui:latest  
     restart: always
     container_name: debezium-ui
     hostname: debezium-ui
@@ -117,6 +120,28 @@ services:
       KAFKA_CONNECT_URIS: http://debezium:8083
     networks:
       - testNetWork
+    platform: linux/amd64
+
+  postgres:
+    image: postgres:latest
+    restart: always
+    container_name: postgres
+    hostname: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: financial_db
+    command: ['postgres', '-c', 'wal_level=logical']
+    healthcheck:
+      test: ['CMD','psql','-U','postgres','-c','SELECT 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      testNetWork:
+  
 
 networks:
   testNetWork:
